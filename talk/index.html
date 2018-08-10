@@ -1,14 +1,15 @@
 <html>
   <head>
-    <meta charset="utf-8">
+    <title>RChain-API: a node.js package for RChain</title>
+    <meta charset="utf-8" />
     <meta name="viewport"
-	  content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+	  content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 
 
-    <link rel="stylesheet" href="css/reveal.css">
-    <link rel="stylesheet" href="css/theme/sky.css">
+    <link rel="stylesheet" href="css/reveal.css" />
+    <link rel="stylesheet" href="css/theme/sky.css" />
     <!-- Theme used for syntax highlighting of code -->
-    <link rel="stylesheet" href="lib/css/zenburn.css">
+    <link rel="stylesheet" href="lib/css/zenburn.css" />
     <style>
       .boxed {
           border-radius: 10px !important;
@@ -29,22 +30,93 @@
     <div class="reveal">
       <div class="slides">
 	<section>
-	  <h2>JSON and Rholang</h2>
-	  <blockquote>
-	    Building on the observations in the section on content
-	    storage and query we can detail a <strong>direct representation of
-	    JSON into a fragment of the rholang syntax</strong> referred to in
-	    the diagram below as RHOCore.
-	    -- <cite><a href="https://github.com/rchain/mobile-process-calculi-for-blockchain/blob/master/enter-the-blockchain.rst">Mobile process calculi for programming the blockchain</a></cite>
-	  </blockquote>
+	  <h2>RChain-API: a <b>node.js</b> package for RChain</h2>
+	  <p>by Dan Connolly, Josh Orndorff, and other contributors</p>
+	  <p>Aug 2018</p>
 	</section>
-<section data-markdown>
-> we can detail a direct representation of JSON into a
-> fragment of the rholang syntax referred to in the diagram
-> below as RHOCore. -- [Mobile process calculi for programming the blockchain][1]
+	<section>
+	  <h2>Origin: Trust Metric in Rholang</h2>
+	  <img src="https://www.diigo.com/file/image/brpqocpzeppprraqezdodddoob/Port+Trust+Metric+to+Rholang+%C2%B7+Issue+%23561+%C2%B7+rchain%2Fbounties.jpg" alt="Port Trust Metric to Rholang #561" />
+	</section>
+<section data-markdown="">
+## Step 1: Trust Certifications on RChain
+
+First part of trust metric protocol:
+
+> I (dckc) certify Bob at journeyer level.
+</section>
+<section data-markdown="">
+## Web UI makes JSON data
+
+> I (dckc) certify Bob at journeyer level.
+
+becomes
+
+```{javascript}
+{
+  "voter": "dckc",
+  "subject": "bob",
+  "rating": 2,
+  "cert_time": "2018-07-29T02:00:21.259Z"
+}
+```
+</section>
+
+<section data-markdown="">
+## How to do transactions?
+
+The [Genesis Block Demo][gbd] of July 11 showed all the pieces working
+together:
+
+  - Signatures are generated offline
+  - on-chain contract, [BasicWallet.rho][bw], checks signatures
+
+```
+@cryptoVerify!([nonce, amount, retCh].toByteArray(),
+               sig.hexToBytes(), pk.hexToBytes(), *result)
+```
+
+[bw]: https://github.com/rchain/rchain/blob/dev/casper/src/main/rholang/BasicWallet.rho
+[gbd]: https://www.youtube.com/watch?v=WzAdfjwgaQs#t=9m28s
+</section>
+
+<section>
+<h2>What bytes to sign?</h2>
+
+<pre><code class="hljs" data-trim="">
+@cryptoVerify!(<b style="text-decoration: underline">[nonce, amount, retCh].toByteArray()</b>,
+               sig.hexToBytes(), pk.hexToBytes(), *result)
+</code></pre>
+</section>
+<section data-markdown="">
+## How to serialize Rholang data?
+
+  - RChain nodes communicate [CasperMessage.proto][cp]
+    - a gRPC protocol
+    - uses protobuf serialization
+  - [CasperMessage.proto][cp] uses datatypes from [RhoTypes.proto][rt]
+
+[rt]: https://github.com/rchain/rchain/blob/dev/models/src/main/protobuf/RhoTypes.proto
+[cp]: https://github.com/rchain/rchain/blob/dev/models/src/main/protobuf/CasperMessage.proto
+</section>
+
+<section data-markdown="">
+## How to turn JSON into RhoTypes?
+
+```{javascript}
+{ "voter": "dckc",
+  "subject": "bob",
+  "rating": 2,
+  "cert_time": "2018-07-29T02:00:21.259Z" }
+```
+
+> ... we can detail a **direct representation of JSON into a
+> fragment of the rholang syntax** referred to ...
+> as RHOCore. -- [Mobile process calculi for programming the blockchain][1]
 
 [1]: https://github.com/rchain/mobile-process-calculi-for-blockchain/blob/master/enter-the-blockchain.rst
 </section>
+
 	<section>
 	  <h2>JSON and Rholang</h2>
 	  <table><tbody>
@@ -84,31 +156,88 @@
 	  </div>
 	  <p>Embeds JSON into RHOCore</p>
 	</section>
+<section>
+<h2>RhoTypes.proto</h2>
+
+<p>A process (<code>Par</code>) has <code>Expr</code>s, <code>Send</code>s, ...:</p>
+
+<table><tr><td>
+<pre><code class="hljs" data-trim>
+message Par {
+    repeated Send sends = 1;
+    repeated Receive receives = 2;
+    repeated New news = 4;
+    repeated Expr exprs = 5;
+...
+</code></pre>
+</td>
+	  <td class="math-display boxed">
+	  \[\begin{array}{lll}
+	  P & ::= & \{\ [P\ [|\ P]]\ \} \\
+	  & | & {\tt for(} Ptrn\ \texttt{ <-}\ X\ [{\tt ;}\ Ptrn \texttt{ <-}\ X]\ {\tt })\ P \\
+          & | & X {\tt !(}\ P\ {\tt )} \\
+          & | & {\tt *} X \\
+          & | & V \\
+	  V & ::= & Arry\ |\ Grnd\ \\
+	  Grnd & ::= & Bool\ |\ Num\ |\ Str\ |\ ... \\
+          Ptrn & ::= & X\ |\ \_\ |\ ... \\
+          X & ::= & @P\ |\ [Char]+ \\
+          \end{array}
+          \]
+</td></tr></table>
+</section>
+      	<section>
+	  <h2>JSON to RHOCore</h2>
+	  <table><tbody>
+	    <tr>
+	  <td class="math-display boxed">
+	    \[
+	    \begin{array}{lll}
+	  Obj & ::= & \{\ Key : Val\ [,\ Key : Val\ ] \} \\
+	  Key & ::= & "\ [Char]+\ " \\
+	  Val & ::= & Grnd\ |\ Arry\ |\ Obj \\
+	  Grnd & ::= & Bool\ |\ Num\ |\ Str\ |\ ... \\
+	  Arry & ::= & [\ Obj\ [,Obj]\ ]
+	    \end{array}
+	  \]
+	  </td>
+	  <td>
+          <pre><code class="hljs" data-trim>
+function toRSON(val) {
+    const expr1 = kv => { exprs: [kv] };
+    function toArry(items) {
+        return expr1({e_list_body: { ps: items.map(recur) } });
+    }
+    function keysValues(obj) {
+    function recur(x) { ... }
+
+    return recur(val);
+}
+          </code></div>
+	  <p><small><em>TODO: fix the "RSON" misnomer</em></small></p>
+          </td></tr></tbody></table>
+	</section>
 	<section>
-	  <h2>JSON and "RHOCore"</h2>
+	  <h2>JSON to RHOCore: Objects become Sends</h2>
+	  <pre><code class="hljs" data-trim>
+    function keysValues(obj) {
+        const sends = Object.keys(obj).sort().map(k => {
+            const chan = { quote: expr1({ g_string: k }) };
+            return fixLF({ chan: chan, data: [recur(obj[k])] });
+        });
+        return fixLF({ sends });
+    }
+	  </code></pre>
 	  <div class="math-display">
 	  \[\begin{equation}
 	  [\![\{ key_1 : val_1,\ ... ,\ key_N : val_N \}]\!] = 
 	  \{ [\![key_1]\!]!(\ [\![val_1]\!]\ )\ |\ ...\ |\ [\![key_N]\!]!(\ [\![val_N]\!]\ )\ \}
 	  \end{equation}\]
 	  </div>
-	  <p>Embeds JSON into RHOCore</p>
+<p><small><strong>Don't forget to <code>sort()</code>!</strong><br />You won't get the right bytes to sign.</small></p>
 	</section>
 	<section>
-	  <h2>RSON</h2>
-	  <pre><code class="hljs" data-trim>
-// this locallyFree: emptyBitSet stuff shouldn't be necessary; see
-// https://rchain.atlassian.net/browse/RHOL-537
-const bytesPerLong = 8;
-const emptyBitSet = new Buffer(Array(bytesPerLong).fill(0));
-function toRSON(x) {
-    const fixLF = p => Object.assign({ locallyFree: emptyBitSet }, p);
-
-    const expr1 = kv => fixLF({ exprs: [kv] });
-	  </code></pre>
-	</section>
-	<section>
-	  <h2>RSON</h2>
+	  <h2>JSON to RHOCore: recur</h2>
 	  <pre class="stretch"><code class="hljs" data-trim contenteditable>
     function recur(x) {
         switch (typeof x) {
@@ -133,61 +262,89 @@ function toRSON(x) {
 	  </code></pre>
 	</section>
 	<section>
-	  <h2>RSON</h2>
+	  <h2>JSON to RHOCore*</h2>
+	  <p>This locallyFree: emptyBitSet stuff shouldn't be necessary; see
+	    <a href="https://rchain.atlassian.net/browse/RHOL-537">RHOL-537</a>.</p>
 	  <pre><code class="hljs" data-trim>
-    function toArry(items) {
-        return expr1({e_list_body: fixLF({ ps: items.map(recur) }) });
-    }
+const bytesPerLong = 8;
+const emptyBitSet = new Buffer(Array(bytesPerLong).fill(0));
+function toRSON(x) {
+    const fixLF = p => Object.assign({ locallyFree: emptyBitSet }, p);
 
-    function keysValues(obj) {
-        const sends = Object.keys(obj).sort().map(k => {
-            const chan = { quote: expr1({ g_string: k }) };
-            return fixLF({ chan: chan, data: [recur(obj[k])] });
-        });
-        return fixLF({ sends });
-    }
-
-    return recur(x);
-}
+    const expr1 = kv => fixLF({ exprs: [kv] });
 	  </code></pre>
-	  <div class="math-display">
-	  \[\begin{equation}
-	  [\![\{ key_1 : val_1,\ ... ,\ key_N : val_N \}]\!] = 
-	  \{ [\![key_1]\!]!(\ [\![val_1]\!]\ )\ |\ ...\ |\ [\![key_N]\!]!(\ [\![val_N]\!]\ )\ \}
-	  \end{equation}\]
-	  </div>
 	</section>
-	<section>
-	  <h2>RSON</h2>
-	  <pre><code class="hljs" data-trim>
-    function toArry(items) {
-        return expr1({e_list_body: fixLF({ ps: items.map(recur) }) });
-    }
+<section><h2><code>gameSession.gs</code>:<br />OAuth Gateway</h2>
+  <dl>
+    <dt>Policy:</dt><dd>Only RChain cooperative members are authorized.</dd>
+    <dt>Mechanism:</dt><dd>discord <b>member</b> role via OAuth2 API</dd>
+  </dl>
+</section>
+<section><h2><code>gameSession.gs</code>:<br />OAuth Gateway</h2>
+  <div>... discord <b>member</b> role via OAuth2 API:</div>
+  <ul>
+    <li>Smart contracts are like multiplayer games.</li>
+    <li>The gateway hosts games,<br />each with its own key pair.</li>
+    <li>An OAuth session becomes<br /> participation in a game.
+    <li>The gateway signs moves on behalf of players.</li>
+  </ul>
+</section>
+<section>
+<h2>OAuth2 leads to JavaScript</h2>
 
-    function keysValues(obj) {
-        const sends = Object.keys(obj)<b>.sort()</b>.map(k => {
-            const chan = { quote: expr1({ g_string: k }) };
-            return fixLF({ chan: chan, data: [recur(obj[k])] });
-        });
-        return fixLF({ sends });
-    }
+<dl>
+  <dt>scala:</dt><dd>OAuth2 libraries are not mature</dd>
+  <dt>JavaScript:</dt><dd>
+    <a href="https://medium.com/@orels1/using-discord-oauth2-a-simple-guide-and-an-example-nodejs-app-71a9e032770">simple guide to discord oauth2</a> May 2017 by Orlov</dd>
+</dl>
+</section>
+<section>
+  <h2>Off-chain ocap security and persistence: Capper</h2>
+  <p><a href="https://github.com/dckc/Capper">Capper</a>:</p>
+  <ul>
+    <li>ocaps for node.js and express</li>
+    <li>object persistence</li>
+    <li><a href="http://waterken.sourceforge.net/web-key/">waterken webkeys</a></li>
+  </ul>
+  <p><small><em>a story for another day...</em></small></p>
+</section>
+<section>
+  <h2><code>gameSession.js</code>:<br />off-chain signature</h2>
+  <pre><code class="hljs" data-trim>
+    const gatewayKey = ... ;
+    const cert1 = { voter: "dckc", subject: "bob", rating: 2, cert_time: clock().toISOString() };
 
-    return recur(x);
-}
-	  </code></pre>
-	  <div class="math-display">
-	  \[\begin{equation}
-	  [\![\{ key_1 : val_1,\ ... ,\ key_N : val_N \}]\!] = 
-	  \{ [\![key_1]\!]!(\ [\![val_1]\!]\ )\ |\ ...\ |\ [\![key_N]\!]!(\ [\![val_N]\!]\ )\ \}
-	  \end{equation}\]
-	  </div>
-	</section>
-      </div>
+    const certPar = RSON.fromData(cert1),
+          certSigHex = gatewayKey.signBytesHex(rchain.toByteArray(certPar))
+          certRho = RSON.stringify(certPar),
+          sigRho = JSON.stringify(certSigHex)
+          certTerm = `@"takeTurn"!(${certRho}, ${sigRho})`;
+
+    const rchain = rnodeAPI.clientFactory({grpc, clock})
+	      .casperClient({ host, port });
+    rchain.doDeploy(certTerm).then(result => {
+	if (!result.success) { throw(result); }
+	return rchain.createBlock();
+  </code></pre>
+</section>
+<section>
+  <h2><code>communityTrust.rho</code>:<br /> on-chain verification</h2>
+  <pre><code class="hljs" data-trim>
+  contract @"takeTurn"(@gameKey, @turn, @turnSig, return) = {
+    new sigCh in {
+      @"ed25519Verify"!(turn.toByteArray(),
+                        turnSig.hexToBytes(), gameKey.hexToBytes(), *sigCh))
+      ...
+</code></pre></section>
+
+</div>
     </div>
     <script src="lib/js/head.min.js"></script>
     <script src="js/reveal.js"></script>
     <script>
       Reveal.initialize({
+      history: true,
+      transition: 'fade',
         dependencies: [
         // Cross-browser shim that fully implements classList - https://github.com/eligrey/classList.js/
         { src: 'lib/js/classList.js', condition: function() { return !document.body.classList; } },
