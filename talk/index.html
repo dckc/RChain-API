@@ -356,6 +356,48 @@ function toRSON(x) {
       ...
 </code></pre></section>
 
+<section><h2>MySql to RChain</h2>
+  <p><small>Another in-progress application of this rchain-api package:</small></p>
+  <ul>
+    <li>Use the DB to enforce business logic constraints.</li>
+    <li>Subscribe to valid changes and send them to RChain.</li>
+    <li><em>Subscribe to RChain and update the DB?</em></li>
+  </ul>
+</section>
+
+<section><h2>MySql events binlog</h2>
+  <ul>
+    <li>Originally for replication</li>
+    <li>Available to node.js via <code>mysql-events</code> npm package</li>
+  </ul>
+</section>
+
+<section><h2>MySql event data</h2>
+
+  <pre><code class="hljs" data-trim>
+{ type: 'INSERT', table: 'budget_vote',
+  rows: [ { after: { pay_period: 2018-07-01T05:00:00.000Z,
+                     issue_num: 199, voter: 'dckc', amount: 425,
+                     vote_time: 2018-08-05T01:19:05.000Z, weight: null },
+            before: undefined } ]
+  </code></pre>
+</section>
+
+<section><h2>Rholang Translation of SQL data</h2>
+  <pre><code class="hljs scala" data-trim>
+@[`https://rewards.rchain.coop`, "budget_vote"]
+      !("INSERT", [@"after"!(@"amount"!(425) | @"issue_num"!(199) | @"pay_period"!("2018-07-01T05:00:00.000Z") | @"vote_time"!("2018-08-05T01:19:05.000Z") | @"voter"!("dckc") | @"weight"!(Nil))])
+  </code></pre>
+</section>
+
+<section><h2>INSERT SQL data to to RChain</h2>
+  <p>in rnode log:</p>
+
+  <pre><code class="hljs plain" data-trim>
+20:19:05.205 [grpc-default-executor-1] INFO  c.rchain.casper.MultiParentCasper$ - CASPER: Received Deploy #1533431945199 -- @{[``https://rewards.rcha...
+  </code></pre>
+</section>
+
 </div>
     </div>
     <script src="lib/js/head.min.js"></script>
