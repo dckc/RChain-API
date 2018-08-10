@@ -333,6 +333,19 @@ function toRSON(x) {
 	return rchain.createBlock();
   </code></pre>
 </section>
+
+<section>
+  <h2><code>gameSession.js</code>:<br />off-chain signature</h2>
+  <p>using <code>tweetnacl</code>:</p>
+  <pre><code class="hljs scala" data-trim>
+@"takeTurn"!("850a6d00e44e5dd9ec02d05bda38d7da760c9c143f2499a754d66dc43f0177df",
+    ["merge", "trust_cert",
+     @"cert_time"!("2018-08-10T20:31:46.545Z") |
+     @"rating"!("1") | @"subject"!("c3") | @"voter"!("dckc")
+], <b style="text-decoration: underline">"182e4fea4f9a53ed99cf4560d2254c476d64fafefd1e19ccb9a34e71cc0ba12592d58b7c096731a2d189e5097f467ebdf062d752815a87281e4b59f7174ca00a"</b>, *ret)
+  </code></pre>
+</section>
+
 <section>
   <h2><code>communityTrust.rho</code>:<br /> on-chain verification</h2>
   <pre><code class="hljs" data-trim>
