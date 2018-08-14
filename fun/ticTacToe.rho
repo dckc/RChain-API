@@ -1,24 +1,26 @@
 new ticTacToe, stderr(`rho:io:stderr`) in {
+  // simulated / testing game
   new xo in {
     ticTacToe!(*xo) | for (@(X, O) <- xo) {
-      // Queue a whole bunch of moves
-      for (@"go", _, where <- @X) { where!(0, 0) } |
-      for (@"go", _, where <- @X) { where!(1, 0) } |
-      for (@"go", _, where <- @X) { where!(-1, 0) } |
-      for (@"go", _, where <- @X) { where!(0, 1) } |
-      for (@"go", _, where <- @X) { where!(1, 1) } |
-      for (@"go", _, where <- @X) { where!(-1, 1) } |
+      for (@"go", _, where <- @X) { where!(0, 0) |
+        for (@"go", _, where <- @X) { where!(1, 0) |
+          for (@"go", _, where <- @X) { where!(-1, 0) |
+            for (@"go", _, where <- @X) { where!(0, 1) |
+              for (@"go", _, where <- @X) { where!(1, 1) |
+                for (@"go", _, where <- @X) { where!(-1, 1)
+                } } } } } } |
 
       for (@"BadMove", @why <= @X) {
         stderr!(["X bad move:", why])
       }
       |
-      for (@"go", _, where <- @O) { where!(0, 1) } |
-      for (@"go", _, where <- @O) { where!(1, 1) } |
-      for (@"go", _, where <- @O) { where!(-1, 1) } |
-      for (@"go", _, where <- @O) { where!(0, -1) } |
-      for (@"go", _, where <- @O) { where!(1, -1) } |
-      for (@"go", _, where <- @O) { where!(-1, -1) } |
+      for (@"go", _, where <- @O) { where!(0, 1) |
+        for (@"go", _, where <- @O) { where!(1, 1) |
+          for (@"go", _, where <- @O) { where!(-1, 1) |
+            for (@"go", _, where <- @O) { where!(0, -1) |
+              for (@"go", _, where <- @O) { where!(1, -1)  |
+                for (@"go", _, where <- @O) { where!(-1, -1)
+                } } } } } } |
 
       for (@"BadMove", @why <= @O) {
         stderr!(["O bad move:", why])
@@ -26,8 +28,9 @@ new ticTacToe, stderr(`rho:io:stderr`) in {
     }
   }
   |
-  contract ticTacToe(return) = {
-    new boardCh, goX, goO in {
+
+  contract @"ticTacToe"(return) = {
+    new boardCh, goX, goO, winsCh in {
       return!((*goX, *goO)) |
       new turn in {
         new startCh, b0Ch in {
@@ -56,6 +59,7 @@ new ticTacToe, stderr(`rho:io:stderr`) in {
             }
             |
             contract redo(_) = {
+              stderr!(["redo", board]) |
               new nextCh in {
                 sideCh!("go", board, *nextCh) | for (@x, @y <- nextCh) {
                   turn!(board, *sideCh, side, (x, y))
@@ -64,22 +68,32 @@ new ticTacToe, stderr(`rho:io:stderr`) in {
             }
             |
             contract play(@side, @x, @y) = {
+              stderr!(["play", side, (x, y)]) |
               new nextBoardCh, nextSideCh, nextMove in {
                 nextBoardCh!(board.set(side, board.get(side).add((x, y)))) |
-                // TODO: determine winner
                 match side {
                   "X" => nextSideCh!(*goO, "O")
                   "O" => nextSideCh!(*goX, "X")
                 }
                 |
-                for (nextGo, @nextSide <- nextSideCh; @nextBoard <- nextBoardCh) {
+                for (nextGo, @nextSide <- nextSideCh; @nextBoard <- nextBoardCh; @wins <- winsCh) {
+                  winsCh!(wins) |
                   if (board.get("X").union(board.get("O")).size() >= 9) {
                     stderr!("CATS game!") |
                     goX!("CATS!") | goO!("CATS!")
                   } else {
-                    stderr!([nextSide, "'s turn. board:", nextBoard]) |
-                    nextGo!("go", nextBoard, *nextMove) | for (@x, @y <- nextMove) {
-                      turn!(nextBoard, *nextGo, nextSide, (x, y))
+                    if (wins.contains(board.get("X"))) {
+                      stderr!(["X wins", nextBoard]) |
+                      goX!("Win!") | goO!("Lose.")
+                    } else if (wins.contains(board.get("O"))) {
+                      stderr!("O wins") |
+                      goO!("Win!") | goX!("Lose.")
+                    } else {
+                      stderr!([nextSide, "'s turn. board:", nextBoard]) |
+                      nextGo!("go", nextBoard, *nextMove) | for (@x, @y <- nextMove) {
+                        stderr!([nextSide, "chose", (x, y)]) |
+                        turn!(nextBoard, *nextGo, nextSide, (x, y))
+                      }
                     }
                   }
                 }
@@ -88,6 +102,22 @@ new ticTacToe, stderr(`rho:io:stderr`) in {
           }
         }
       }
+      |
+      winsCh!(Set(
+        // Across
+        Set((-1, 0), (0, 0), (1, 0)),
+        Set((-1, 1), (0, 1), (1, 1)),
+        Set((-1, -11), (0, -1), (1, -1)),
+
+        // Down
+        Set((0, -1), (0, 0), (0, 1)),
+        Set((1, -1), (1, 0), (1, 1)),
+        Set((-1, -1), (-1, 0), (-1, 1)),
+
+        // Diagnoal
+        Set((-1, -1), (0, 0), (1, 1)),
+        Set((1, 1), (0, 0), (-1, -1))
+      ))
     }
   }
 }
