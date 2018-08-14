@@ -1,0 +1,87 @@
+new ticTacToe, stderr(`rho:io:stderr`) in {
+  new xo in {
+    ticTacToe!(*xo) | for (@(X, O) <- xo) {
+      for (@"go", @board, where <= @X) {
+        stderr!(["X's turn:", board.keys().size(), board]) |
+        match board.keys().size() {
+          0 => { where!(0, 0) }
+          2 => { where!(-1, -1) }
+          4 => { where!(1, 1) }
+        }
+      }
+      |
+      for (@"BadMove", @why <= @X) {
+        stderr!(["X bad move:", why])
+      }
+      |
+      for (@"go", @board, where <= @O) {
+        stderr!(["O's turn:", board.keys().size(), board]) |
+        match board.keys().size() {
+          1 => { where!(-1, 1) }
+          3 => { where!(1, 1) }
+          5 => { where!(0, 1) }
+        }
+      }
+    }
+  }
+  |
+  contract ticTacToe(return) = {
+    new boardCh, goX, goO in {
+      return!((*goX, *goO)) |
+      new turn in {
+        new startCh in {
+          goX!("go", {}, *startCh) | for (@x, @y <- startCh) {
+            turn!({}, *goX, "X", (x, y))
+          }
+        }
+        |
+        // @board: map from (x, y) to "X" / "O" (or, implicitly, Nil)
+        // where x, y in {-1, 0, 1}
+        // TODO: switch to a set of X positions and a set of O positions
+        contract turn(@board, sideCh, @side, @(x, y)) = {
+          stderr!(["turn:", side, (x, y), board]) |
+          new redo, play in {
+            if (x < -1 or y < -1 or x > 1 or y > 1) {
+              redo!(Nil)
+            } else {
+              if (board.get((x, y)) != Nil) {
+                redo!(Nil)
+              } else {
+                play!(side, x, y)
+              }
+            }
+            |
+            contract redo(_) = {
+              new nextCh in {
+                sideCh!("go", board, *nextCh) | for (@x, @y <- nextCh) {
+                  turn!(board, *sideCh, side, (x, y))
+                }
+              }
+            }
+            |
+            contract play(@side, @x, @y) = {
+              new nextBoardCh, nextSideCh, nextMove in {
+                nextBoardCh!(board.set((x, y), side)) |
+                // TODO: determine winner
+                match side {
+                  "X" => nextSideCh!(*goO, "O")
+                  "O" => nextSideCh!(*goX, "X")
+                }
+                |
+                for (nextGo, @nextSide <- nextSideCh; @nextBoard <- nextBoardCh) {
+                  if (nextBoard.keys().size() >= 9) {
+                    goX!("CATS!") | goO!("CATS!")
+                  } else {
+                    nextGo!("go", nextBoard, *nextMove) | for (@x, @y <- nextMove) {
+                      turn!(nextBoard, *nextGo, nextSide, (x, y))
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
