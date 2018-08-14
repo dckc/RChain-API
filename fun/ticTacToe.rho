@@ -1,7 +1,7 @@
 new ticTacToe, stderr(`rho:io:stderr`) in {
   // simulated / testing game
   new xo in {
-    ticTacToe!(*xo) | for (@(X, O) <- xo) {
+    @"ticTacToe"!(*xo) | for (@(X, O) <- xo) {
       for (@"go", _, where <- @X) { where!(0, 0) |
         for (@"go", _, where <- @X) { where!(1, 0) |
           for (@"go", _, where <- @X) { where!(-1, 0) |
