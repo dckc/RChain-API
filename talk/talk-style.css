@@ -1,0 +1,27 @@
+<!-- ISSUE: text-transform: uppercase; around line 57 (heading?) -->
+<link rel="stylesheet" href="reveal.js/css/theme/sky.css" />
+<!-- Theme used for syntax highlighting of code -->
+    <link rel="stylesheet" href="reveal.js/lib/css/zenburn.css" />
+    <style>
+      .boxed {
+          border-radius: 10px !important;
+      border: 3px solid black !important;
+      }
+      .math-display {
+      font-size: large !important;
+      }
+
+      table {
+    margin: 10px !important;
+    border-collapse: separate !important;
+    border-spacing: 40px !important;
+}
+    </style>
+
+    <script>
+	var link = document.createElement( 'link' );
+	link.rel = 'stylesheet';
+	link.type = 'text/css';
+	link.href = window.location.search.match( /print-pdf/gi ) ? 'reveal.js/css/print/pdf.css' : 'reveal.js/css/print/paper.css';
+	document.getElementsByTagName( 'head' )[0].appendChild( link );
+</script>
