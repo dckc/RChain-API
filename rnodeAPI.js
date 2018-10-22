@@ -13,9 +13,12 @@ refs:
 // @flow strict
 
 const assert = require('assert');
+// $FlowFixMe no annotations
 const protoLoader = require('@grpc/proto-loader');
+// $FlowFixMe no annotations
 const blake2 = require('blake2');
 const crypto = require('crypto');
+// $FlowFixMe no annotations
 const { keccak256 } = require('js-sha3');
 
 const RHOCore = require('./RHOCore');

@@ -3,16 +3,18 @@
 Note also rho:pubkey:ed25519:xxxxx.
 
  */
+// @flow strict
 
 // ref https://nodejs.org/api/util.html#util_custom_inspection_functions_on_objects
 // ack: https://stackoverflow.com/a/46870568
 // const inspect = require('util').inspect;
 
+// $FlowFixMe no annotations
 const { sign } = require('tweetnacl'); // ocap discpline: "hiding" keyPair
 
-const b2h = bytes => Buffer.from(bytes).toString('hex');
-const h2b = hex => Buffer.from(hex, 'hex');
-const t2b = text => Buffer.from(text);
+const b2h = (bytes /*: Uint8Array*/) => Buffer.from(bytes).toString('hex');
+const h2b = (hex /*: string*/) => Buffer.from(hex, 'hex');
+const t2b = (text /*: string*/) => Buffer.from(text);
 
 const def = obj => Object.freeze(obj); // cf. ocap design note
 
@@ -25,18 +27,18 @@ module.exports.keyPair = keyPair;
  * @param seed: 32 bytes, as from crypto.randombytes(32)
  * @return: object with .signBytes etc. methods (IOU real docs, or at least tests)
  */
-function keyPair(seed) {
+function keyPair(seed /*: Uint8Array*/) {
   const key = sign.keyPair.fromSeed(seed);
 
   // TODO const toString = () => `<keyPair ${label}: ${state.publicKey.substring(0, 12)}...>`;
-  const signBytes = bytes => sign.detached(bytes, key.secretKey);
+  const signBytes = (bytes /*: Uint8Array*/) => sign.detached(bytes, key.secretKey);
 
   return def({
     // TODO toString,
     signBytes,
-    signBytesHex: bytes => b2h(signBytes(bytes)),
-    signText: text => signBytes(t2b(text)),
-    signTextHex: text => b2h(signBytes(t2b(text))),
+    signBytesHex: (bytes /*: Uint8Array*/) => b2h(signBytes(bytes)),
+    signText: (text /*: string */) => signBytes(t2b(text)),
+    signTextHex: (text /*: string */) => b2h(signBytes(t2b(text))),
     publicKey: () => b2h(key.publicKey),
     // TODO label: () => state.label,
     // TODO [inspect.custom]: toString
