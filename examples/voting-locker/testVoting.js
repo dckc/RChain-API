@@ -1,4 +1,5 @@
 /* global require */
+// @flow
 
 const { URL } = require('url');
 
@@ -8,7 +9,7 @@ const { link } = require('./assets');
 const { loadRhoModules } = require('../../src/loading');
 
 const defaultPayment = { from: '0x1', nonce: 0, phloPrice: 1, phloLimit: 100000 };
-const defaultDeployInfo = { term: '', sig: h2b(''), sigAlgorithm: 'ed25519', timestamp: 0, ...defaultPayment };
+const defaultDeployInfo = { ...defaultPayment, term: '', sig: h2b(''), sigAlgorithm: '', timestamp: 0 };
 const user = h2b('d72d0a7c0c9378b4874efbf871ae8089dd81f2ed3c54159fffeaba6e6fca4236'); // arbitrary
 
 const Scenario = {
@@ -34,8 +35,8 @@ async function test({ rnode, clock }) {
     link('./chairRole.rho'), link('./voterRole.rho'),
   ], user, { rnode, clock });
 
-  const chairRole = makeProxy(chairRoleMod.URI, { user, ...defaultDeployInfo }, { rnode, clock });
-  const voterRole = makeProxy(voterRoleMod.URI, { user, ...defaultDeployInfo }, { rnode, clock });
+  const chairRole = makeProxy(chairRoleMod.URI, { ...defaultDeployInfo, user }, { rnode, clock });
+  const voterRole = makeProxy(voterRoleMod.URI, { ...defaultDeployInfo, user }, { rnode, clock });
 
   // There's no data dependency between the following two calls, so we should
   // be able to do them concurrently, but our proxy mechanism expects replies
@@ -56,8 +57,8 @@ async function test({ rnode, clock }) {
   }
   const { locker, inbox } = vl;
 
-  const chairLocker = makeProxy(chairLockerURI, { user, ...defaultDeployInfo }, { rnode, clock });
-  const voterLocker = makeProxy(locker, { user, ...defaultDeployInfo }, { rnode, clock });
+  const chairLocker = makeProxy(chairLockerURI, { ...defaultDeployInfo, user }, { rnode, clock });
+  const voterLocker = makeProxy(locker, { ...defaultDeployInfo, user }, { rnode, clock });
 
   function toySig(kpr) {
     const pkh = kpr.publicKey();
