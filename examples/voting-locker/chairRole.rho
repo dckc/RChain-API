@@ -10,7 +10,7 @@ in {
   // Make and register chair locker; return URI.
   contract chairRole(
     @"makeLocker", @nickname, @pubKey, @choices,
-    @{@"Ballot"!(BallotURI) | @"Locker"!(LockerURI)},  // JSON object / record
+    @{"Ballot": BallotURI, "Locker": LockerURI},
     return,
   ) = {
     new seedEntry, lockerCh, blCh, llCh, ackCh in {
@@ -44,8 +44,8 @@ in {
                 contract self(@"getWinner", _, reject, resolve) = {
                   // ISSUE: tuples in RHOCore / RSON / JSON
                   new ch in {
-                    winner!(*ch) | for (@(winner, tally) <- ch) {
-                      resolve!({"winner": winner, "tally": tally})
+                    winner!(*ch) | for (@result <- ch) {
+                      resolve!(result)
                     }
                   }
                 }
