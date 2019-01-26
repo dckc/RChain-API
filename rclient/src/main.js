@@ -16,6 +16,7 @@ const {
 } = require('rchain-api');
 const { loadRhoModules } = require('../../src/loading'); // ISSUE: path?
 
+const { GPrivate } = require('../../protobuf/RhoTypes.js');
 const { fsReadAccess, fsWriteAccess, FileStorage } = require('./pathlib');
 const { asPromise } = require('./asPromise');
 const secretStorage = require('./secretStorage');
@@ -33,6 +34,7 @@ Usage:
   rclient [options] send --from=LABEL --to=URI AMOUNT
   rclient [options] sign LABEL [ --json ] DATAFILE
   rclient [options] deploy RHOLANG
+  rclient [options] reg_sig_gen
   rclient [options] register RHOMODULE...
 
 Options:
@@ -57,6 +59,8 @@ Options:
  deploy                 deploy RHOLANG file
  register               deploy RHOMODULE, register exported process,
                         and save URI in registry file
+ reg_sig_gen            generate key and timestamp and derive
+                        parameters for insertSigned()
  --registry=FILE        where to store file / URI mappings
                         [default: registry.json]
  -v --verbose           Verbose logging
@@ -162,9 +166,34 @@ async function main(
     await register(
       cli.RHOMODULE.map(rd), priceInfo(), { rnode, clock, registry: FileStorage(argWr('--registry')) },
     );
+  } else if (cli.reg_sig_gen) {
+    await registrySigGen(priceInfo(), { rnode, clock, randomBytes });
   }
 
   // ISSUE: process exit code
+}
+
+async function registrySigGen(priceInfo, { rnode, randomBytes, clock }) {
+  // const sk = h2b('a300690f29ac6385917cb94bf534f9b4163792ef8636c5db44608a77fa0356c2');
+  // const timestamp = 1539969637029;
+  const sk = randomBytes(32);
+  const timestamp = clock().valueOf();
+  const key = keyPair(sk);
+
+  const [id] = await rnode.previewPrivateIds({ ...priceInfo, timestamp, user }, 1);
+  const data = GPrivate.create({ id });
+  const message = RHOCore.toByteArray(RHOCore.fromJSData(data));
+  const sig = key.signBytesHex(message);
+  const uri = rhoid.pkURI(Buffer.from(h2b(key.publicKey())));
+  console.log({
+    sk: b2h(sk),
+    pk: key.publicKey(),
+    user: '== pk',
+    timestamp,
+    'signature data': b2h(message),
+    signature: sig,
+    'URI derived from pk': uri,
+  });
 }
 
 
