@@ -322,10 +322,14 @@ async function signMessage(keyStore, label, input, { getpass }) {
   try {
     const privKey = await loadKey(keyStore, label, notice, { getpass });
     const sigObj = secp256k1.sign(message, privKey);
-    console.log(b2h(sigObj.signature));
-  } catch (oops) {
-    console.error('cannot load key');
-    console.error(oops.message);
+
+    const edKey = keyPair(privKey); // ed25519 per nacl
+    console.log({
+      secp256k1: b2h(secp256k1.signatureExport(sigObj.signature)),
+      ed25591: b2h(edKey.signBytes(message)),
+    });
+  } catch (err) {
+    throw new ExitStatus(`cannot sign: ${err.message}`);
   }
 }
 
@@ -337,7 +341,9 @@ async function showPublic(label, { keyStore, getpass }) {
     // should be passed as an explicit capability.
     const pubKey = privateToPublic(privKey);
     const ethAddr = `0x${b2h(pubToAddress(pubKey))}`;
-    console.log({ label, publicKey: b2h(pubKey), ethAddr });
+    const edKey = keyPair(privKey);
+    const edPubKey = edKey.publicKey();
+    console.log({ label, publicKey: b2h(pubKey), edPubKey, ethAddr });
   } catch (oops) {
     console.error('cannot load key');
     console.error(oops.message);
