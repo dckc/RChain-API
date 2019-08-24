@@ -10,7 +10,7 @@ PBTS=../node_modules/.bin/pbts
 FLOWGEN=../node_modules/.bin/flowgen
 
 # Set version needed and run `make update`
-REV=release-rnode-v0.9.11
+REV=v0.9.12
 
 GOOG=google/protobuf/empty.proto google/protobuf/any.proto
 PROTO_SRC=CasperMessage.proto DeployService.proto RhoTypes.proto ProposeService.proto Either.proto routing.proto $(GOOG)
