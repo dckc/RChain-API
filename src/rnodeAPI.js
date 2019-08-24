@@ -116,7 +116,10 @@ function RNode(
         arg => arg,
         arg => arg,
         requestData,
-        callback,
+        (...args) => {
+          console.log('@@rpc callback:', args);
+          callback(...args);
+        },
       );
     }
 
