@@ -12,8 +12,8 @@ refs:
 // @flow strict
 
 const assert = require('assert');
-const protoLoader = require('@grpc/proto-loader');
 const {
+  DeployService,
   BlockQueryResponse,
   LightBlockInfo,
   DataWithBlockInfo,
@@ -23,6 +23,7 @@ const {
   ListeningNameDataResponse,
   PrivateNamePreviewResponse,
 } = require('../protobuf/DeployService').coop.rchain.casper.protocol;
+const { ProposeService } = require('../protobuf/ProposeService').coop.rchain.casper.protocol;
 const RHOCore = require('./RHOCore');
 const Hex = require('./hex');
 const { RholangCrypto } = require('./signing');
@@ -30,19 +31,6 @@ const { RholangCrypto } = require('./signing');
 const { blake2b256Hash, ed25519Verify } = RholangCrypto;
 
 const def = obj => Object.freeze(obj); // cf. ocap design note
-
-// Options for similarity to grpc.load behavior
-// https://grpc.io/docs/tutorials/basic/node.html#loading-service-descriptors-from-proto-files
-const likeLoad = { keepCase: true, longs: String, enums: String, defaults: true, oneofs: true };
-const deployServiceDefinition = protoLoader.loadSync(
-  __dirname + '/../protobuf/DeployService.proto', // eslint-disable-line
-  likeLoad,
-);
-const proposeServiceDefinition = protoLoader.loadSync(
-  __dirname + '/../protobuf/ProposeService.proto', // eslint-disable-line
-  likeLoad,
-);
-
 
 /*::
 import type { JsonExt } from './RHOCore';
@@ -111,19 +99,33 @@ function RNode(
   grpc /*: GRPCAccess */,
   endPoint /*: { host: string, port: number } */,
 ) /*: IRNode */ {
-  const { host, port } = endPoint;
-  assert.ok(host, 'endPoint.host missing');
-  assert.ok(port, 'endPoint.port missing');
+  function makeRpcImpl() { // limit scope of client
+    const { host, port } = endPoint;
+    assert.ok(host, 'endPoint.host missing');
+    assert.ok(port, 'endPoint.port missing');
 
-  const deployProto = grpc.loadPackageDefinition(deployServiceDefinition);
-  const client /*: DeployService */ = new deployProto.coop.rchain.casper.protocol.DeployService(
-    `${host}:${port}`, grpc.credentials.createInsecure(), // ISSUE: let caller do secure?
-  );
+    const Client = grpc.makeGenericClientConstructor({});
+    const client = new Client(
+      `${host}:${port}`,
+      grpc.credentials.createInsecure(), // ISSUE: let caller do secure?
+    );
 
-  const proposeProto = grpc.loadPackageDefinition(proposeServiceDefinition);
-  const proposeClient /*: ProposeService */ = new proposeProto.coop.rchain.casper.protocol.ProposeService(
-    `${host}:${port}`, grpc.credentials.createInsecure(),  // ISSUE: let caller do secure?
-  );
+    function rpc(method, requestData, callback) {
+      client.makeUnaryRequest(
+        method.name,
+        arg => arg,
+        arg => arg,
+        requestData,
+        callback,
+      );
+    }
+
+    return rpc;
+  }
+
+  const rpcImpl = makeRpcImpl();
+  const deployClient = DeployService.create(rpcImpl, false, false);
+  const proposeClient = ProposeService.create(rpcImpl, false, false);
 
   /**
    * Ask rnode to compute ids of top level private names, given deploy parameters.
@@ -142,7 +144,7 @@ function RNode(
   ) /*: Promise<Buffer[]> */{
     const response = await either(
       PrivateNamePreviewResponse,
-      send(f => client.previewPrivateNames({ user, timestamp, nameQty }, f)),
+      send(f => deployClient.previewPrivateNames({ user, timestamp, nameQty }, f)),
     );
     return response.ids;
   }
@@ -181,7 +183,7 @@ function RNode(
     if (!Number.isInteger(deployData.phloPrice)) {
       throw new Error('ERROR: DeployData structure requires "phloPrice" to be specified');
     }
-    let out = await either(DeployServiceResponse, send(f => client.doDeploy(deployData, f)));
+    let out = await either(DeployServiceResponse, send(f => deployClient.doDeploy(deployData, f)));
     if (autoCreateBlock) {
       out = await either(DeployServiceResponse, send(f => proposeClient.propose({}, f)));
     }
@@ -269,7 +271,7 @@ function RNode(
     const _ = DataWithBlockInfo; // mark used
     const response = await either(
       ListeningNameDataResponse,
-      send(f => client.listenForDataAtName(channelRequest, f)),
+      send(f => deployClient.listenForDataAtName(channelRequest, f)),
     );
     // console.log('listen', { response });
     return response.blockResults;
@@ -327,7 +329,7 @@ function RNode(
       names: pars,
     };
 
-    const response = await send(f => client.listenForContinuationAtName(channelRequest, f));
+    const response = await send(f => deployClient.listenForContinuationAtName(channelRequest, f));
     return either(ListeningNameContinuationResponse, response);
   }
 
@@ -346,7 +348,7 @@ function RNode(
 
     const response = await either(
       BlockQueryResponse,
-      send(f => client.getBlock({ hash: blockHash }, f)),
+      send(f => deployClient.getBlock({ hash: blockHash }, f)),
     );
     return response.blockInfo;
   }
@@ -364,7 +366,7 @@ function RNode(
   function getBlocks(blockDepth /*: number */ = 1) /*: Promise<LightBlockInfo> */{
     if (!Number.isInteger(blockDepth)) { throw new Error('ERROR: blockDepth must be an integer'); }
     if (blockDepth < 1) { throw new Error('ERROR: blockDepth parameter must be >= 1'); }
-    return sendThenReceiveStream(client.getBlocks({ depth: blockDepth }))
+    return sendThenReceiveStream(deployClient.getBlocks({ depth: blockDepth }))
       .then((parts) => {
         if (parts.length === 0) {
           throw new Error('ERROR: Failed to retrieve the requested blocks');
